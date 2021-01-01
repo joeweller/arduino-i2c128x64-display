@@ -1,5 +1,5 @@
 import serial
-from frame import Frame
+from frame.frame import Frame
 from time import sleep
 
 SERIAL_DEVICE = 'COM3'
@@ -22,7 +22,7 @@ def main():
         framecount+=1
         currframe = framecount
         
-        frame = Frame.Frame()
+        frame = Frame()
         
         # flush serial buffers
         ser.flushInput()
@@ -31,7 +31,7 @@ def main():
         if 1 == framecount:
 
             frame.init_line(1, 1)
-            frame.line(1).setcolumntext(1, 'test', 'left')
+            frame.line(1).setcolumntext(1, 'test')
 
             frame.init_line(2, 2)
             frame.line(2).setcolumntext(1, 'test', 'center')
