@@ -1,2 +1,4 @@
 .vscode/
-examples/python/venv
+examples/**/venv
+**.pyc
+**/__pycache__
