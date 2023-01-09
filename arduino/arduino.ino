@@ -20,9 +20,8 @@ Adafruit_SSD1306 display(128, 64, &Wire, OLED_RESET);
 
 const unsigned char *WELCOME_MESSAGE = reinterpret_cast<const unsigned char *>("Boot Complete!\n");
 unsigned int LINE_BUFFER[3][8];
-bool START_BUFFERWRITE = false;
-int CURRENT_LINE_BUFFER = 0; // current line to write to in local buffer
-int BUFFER_WRITTEN_Y;        // count to 64 of written display buffer lines
+int BUFFER_CURRENT_Y; // current line to write to in local buffer
+int BUFFER_WRITTEN_Y; // count to 64 of written display buffer lines
 int Y;
 
 void setup()
@@ -32,45 +31,42 @@ void setup()
     // Display I2C Address (default 0x3D) for 128x64
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
     {
-        Serial.println(F("SSD1306 allocation failed"));
+        // Serial.println(F("SSD1306 allocation failed"));
         for (;;)
             ; // don't proceed, loop forever if allocation fails
     }
-    else
-    {
-        Serial.println("Boot Sequence Complete");
-        display.clearDisplay();
-        drawTextLine_Small((unsigned char *)WELCOME_MESSAGE, (uint8_t)strlen((char *)WELCOME_MESSAGE), 0);
-        display.display();
-    }
-    unsigned int t = true;
+
     randomSeed(analogRead(0));
-    delay(2000);
+    // Serial.println("Boot Sequence Complete");
+    display.clearDisplay();
+    drawTextLine_Small((unsigned char *)WELCOME_MESSAGE, (uint8_t)strlen((char *)WELCOME_MESSAGE), 0);
+    display.display();
+
+    // delay(2000);
     initGrid();
 }
 
 void loop()
 {
-    Serial.println('start loop');
+    // Serial.println('start loop');
     BUFFER_WRITTEN_Y = 0;
-    Y = 0;
+    BUFFER_CURRENT_Y = 0;
 
-    for (; Y < SCREEN_HEIGHT; Y++)
+    for (Y = 0; Y < SCREEN_HEIGHT; Y++)
     {
-        Serial.println('start y');
-        for (int x = 0; x < 128; x++)
+        // Serial.println('start y');
+        for (int x = 0; x < SCREEN_WIDTH; x++)
         {
             writePixelBuffer(x, checkCellStatus(x, Y));
             // display.drawPixel(x, y, checkCellStatus(x, y));
         }
-        Serial.println('finished writing x');
+        // Serial.println('finished writing x');
         updateDisplayBuffer();
     }
 
-    while (BUFFER_WRITTEN_Y < SCREEN_WIDTH)
-    {
-        updateDisplayBuffer();
-    }
+    Serial.println(SCREEN_HEIGHT - BUFFER_WRITTEN_Y);
+    Serial.println(SCREEN_HEIGHT - BUFFER_WRITTEN_Y);
+    flushDisplayBuffer();
 
     display.display();
 }
@@ -82,7 +78,7 @@ const void initGrid()
     {
         for (int x = 0; x < SCREEN_WIDTH; x++)
         {
-            display.drawPixel(x, y, random(50) < 5);
+            display.drawPixel(x, y, random(50) < 20);
         }
     }
     display.display();
@@ -127,64 +123,67 @@ int getNeighbourAliveCount(const int x, const int y)
 
 void updateDisplayBuffer()
 {
-    if (Y > 2)
+    if (Y > 0)
     {
-        if (CURRENT_LINE_BUFFER == 0)
+        if (BUFFER_CURRENT_Y == 0)
         {
             writeDisplayBufferLine(2);
-            CURRENT_LINE_BUFFER++;
+            BUFFER_CURRENT_Y++;
         }
-        else if (CURRENT_LINE_BUFFER == 1)
+        else if (BUFFER_CURRENT_Y == 1)
         {
             writeDisplayBufferLine(0);
-            CURRENT_LINE_BUFFER++;
+            BUFFER_CURRENT_Y++;
         }
-        else if (CURRENT_LINE_BUFFER == 2)
+        else if (BUFFER_CURRENT_Y == 2)
         {
             writeDisplayBufferLine(1);
-            CURRENT_LINE_BUFFER = 0;
+            BUFFER_CURRENT_Y = 0;
         }
     }
 }
 
-void writeDisplayBufferLine(const int bufferLine)
+void writeDisplayBufferLine(const int writableBufferIndex)
 {
-    for (int x = 0; x < SCREEN_WIDTH; x++)
+    int intChunks = SCREEN_WIDTH / 16;
+    for (int intIndex = 0; intIndex < intChunks; intIndex++)
     {
-        int innerInt = (int)x / 16;
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 15 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 14 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 13 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 12 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 11 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 10 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 9 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 8 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 7 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 6 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 5 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 4 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 3 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 2 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 1 & 1);
-        display.drawPixel(x, BUFFER_WRITTEN_Y, LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] & 1);
-        // bool val = LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] & 0x1;
-        // display.drawPixel(x, BUFFER_WRITTEN_Y, val);
-        // LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] = LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] >> 1;
-        // if (innerInt == 15)
-        // {
-        //     LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] =
-        //         LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] >> 1;
-        // }
+        int xIndex = (intIndex * 16);
+        unsigned int tmp = LINE_BUFFER[writableBufferIndex][intIndex];
+        display.drawPixel(xIndex, BUFFER_WRITTEN_Y, (tmp >> 15) & 1);
+        display.drawPixel(xIndex + 1, BUFFER_WRITTEN_Y, (tmp >> 14) & 1);
+        display.drawPixel(xIndex + 2, BUFFER_WRITTEN_Y, (tmp >> 13) & 1);
+        display.drawPixel(xIndex + 3, BUFFER_WRITTEN_Y, (tmp >> 12) & 1);
+        display.drawPixel(xIndex + 4, BUFFER_WRITTEN_Y, (tmp >> 11) & 1);
+        display.drawPixel(xIndex + 5, BUFFER_WRITTEN_Y, (tmp >> 10) & 1);
+        display.drawPixel(xIndex + 6, BUFFER_WRITTEN_Y, (tmp >> 9) & 1);
+        display.drawPixel(xIndex + 7, BUFFER_WRITTEN_Y, (tmp >> 8) & 1);
+        display.drawPixel(xIndex + 8, BUFFER_WRITTEN_Y, (tmp >> 7) & 1);
+        display.drawPixel(xIndex + 9, BUFFER_WRITTEN_Y, (tmp >> 6) & 1);
+        display.drawPixel(xIndex + 10, BUFFER_WRITTEN_Y, (tmp >> 5) & 1);
+        display.drawPixel(xIndex + 11, BUFFER_WRITTEN_Y, (tmp >> 4) & 1);
+        display.drawPixel(xIndex + 12, BUFFER_WRITTEN_Y, (tmp >> 3) & 1);
+        display.drawPixel(xIndex + 13, BUFFER_WRITTEN_Y, (tmp >> 2) & 1);
+        display.drawPixel(xIndex + 14, BUFFER_WRITTEN_Y, (tmp >> 1) & 1);
+        display.drawPixel(xIndex + 15, BUFFER_WRITTEN_Y, tmp & 1);
+        LINE_BUFFER[writableBufferIndex][intIndex] = 0; // reset buffer
     }
     BUFFER_WRITTEN_Y++;
+}
+
+void flushDisplayBuffer()
+{
+    for (; BUFFER_WRITTEN_Y < SCREEN_HEIGHT;)
+    {
+        updateDisplayBuffer();
+    }
 }
 
 void writePixelBuffer(const int x, const int val)
 {
     int innerInt = (int)x / 16;
-    LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] =
-        (LINE_BUFFER[CURRENT_LINE_BUFFER][innerInt] << 1) | val;
+    LINE_BUFFER[BUFFER_CURRENT_Y][innerInt] =
+        (LINE_BUFFER[BUFFER_CURRENT_Y][innerInt] << 1) | val;
 }
 
 /**
